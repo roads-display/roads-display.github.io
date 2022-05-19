@@ -1,0 +1,1242 @@
+<!DOCTYPE html>
+<!--
+    DaySee.org Dementia/Alzheimer Clock
+
+    The clocks I found were all digital.
+    I wanted to create an Analog clock showing the day information
+
+    For ease of use the whole application is in one HTML file,
+    structured so you do not need advanced scripting knowledge to make changes
+
+-->
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+    <title>DaySee.org Clock</title>
+
+    <!--<link rel="import" href="wc_mux-icons.html">-->
+
+    <script type="application/javascript">
+        let isChrome = !!window.chrome && !window.isOpera;
+
+        let Languages = {
+            'nl': {
+                tag: 'nl-NL'
+            },
+            'en': {
+                tag: 'en-GB'
+            },
+            'it': {
+                tag: 'it-IT'
+            },
+            'de': {
+                tag: 'de-DE'
+            },
+            'fr': {
+                tag: 'fr-FR'
+            },
+            'da': {
+                tag: 'da-DA'
+            },
+            'es': {
+                tag: 'es-ES'
+            },
+            'pt': {
+                tag: 'pt-PT'
+            }
+
+        };
+
+        const trace = false;
+
+        /* Initial Configuration */
+
+        const canvas_backgroundColor = 'black';
+        const clock_faceColor = 'black';
+        //clock_faceColor='darkslategray';
+        const clock_letterColor = 'wheat';
+        const clock_letterBorder = clock_letterColor;
+        const clock_letterBorderThinkness = 3;
+        const clock_handColor = clock_letterColor;
+        const clock_handBorder = clock_faceColor;
+
+        const day_backgroundColor = clock_faceColor;
+        const day_textColor = clock_letterColor;
+
+    </script>
+
+    <!--<script src="lib/adapter.js" type="application/javascript"></script>-->
+    <!--<script src="lib/diff-cam-engine.js" type="application/javascript"></script>-->
+    <!--<script src="lib/artyom.js" type="application/javascript"></script>-->
+    <!--<script src="lib/moment-with-locales.js" type="application/javascript"></script>-->
+
+    <!--<script src="daysee_calendar.js" type="application/javascript"></script>-->
+    <!--<script src="daysee_memory.js" type="application/javascript"></script>-->
+    <!--<script src="daysee_speech.js" type="application/javascript"></script>-->
+
+    <style>
+        body {
+            font-family: "Arial", sans-serif;
+            margin: 0;
+            padding: 0;
+            overflow: hidden; /* disable any scroll bar */
+        }
+
+        #TopMessage {
+            height: 2vh;
+            width: 100%;
+            overflow: auto;
+            background: lightgrey;
+        }
+
+        #Container { /* container for full width/height HTML Canvas */
+            position: absolute;
+            width: 100vw;
+            height: 100vh;
+            top: 0;
+            margin: 0 auto;
+            display: block;
+            box-sizing: border-box;
+            background: black;
+        }
+    </style>
+    <style>
+        #ClockCanvas {
+            position: absolute; /* CANVAS covers the whole parent element */
+            width: 100%;
+            height: 100%;
+        }
+
+        #URL {
+            position: absolute;
+            bottom: 0;
+            left: .1vw;
+            font-size: 1vw;
+            color: whitesmoke;
+            opacity: .5;
+        }
+
+        :root {
+            --Controls-height: 90vh;
+            --Controls-padding: 5px;
+            --Control_Setting-padding: 15px;
+            --Controls-opacity: 1;
+            --Controls-zoom: 2.5;
+        }
+
+        .ControlPage {
+            position: fixed;
+            overflow: auto;
+            padding: 0 var(--Control_Setting-padding);
+            opacity: var(--Controls-opacity);
+            background: aliceblue;
+            box-sizing: border-box;
+            display: none;
+        }
+    </style>
+    /* VVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV PORTRAIT */
+    <style id="portrait" media="all and (orientation:portrait)">
+        :root {
+            --Control_Button-width: 80px;
+            --Controls-Button-background: darkgreen;
+        }
+
+        #Controls__ButtonBar {
+            position: absolute;
+            top: 0;
+            width: calc(var(--Control_Button-width) * 1);
+        }
+
+        .ControlButton {
+            width: var(--Control_Button-width);
+            margin-bottom: var(--Controls-padding);
+        }
+
+        .ControlPage {
+            top: 0;
+            left: var(--Control_Button-width);
+            xwidth: calc(100vw - var(--Control_Button-width));
+            xheight: var(--Controls-height);
+        }
+    </style>
+    /*VVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV LANDSCAPE */
+    <style id="landscape" media="all and (orientation:landscape)">
+        :root {
+            --Control_Button-width: 60px;
+            --Controls-Button-background: blue;
+        }
+
+        #Controls__ButtonBar {
+            position: fixed;
+            bottom: 0;
+            width: 100%;
+        }
+
+        .ControlButton {
+            width: var(--Control_Button-width);
+            margin-right: var(--Controls-padding);
+        }
+
+        .ControlPage {
+            bottom: calc(var(--Control_Button-width) + var(--Controls-padding));
+            left: 0;
+            xleft: var(--Control_Button-width);
+            xwidth: calc(100vw - var(--Control_Button-width));
+            xheight: var(--Controls-height);
+        }
+    </style>
+    <style>
+
+        #Controls__ButtonBar {
+            left: 0;
+            margin: 0;
+            box-sizing: border-box;
+        }
+
+        .ControlButton {
+            position: relative;
+            float: left;
+
+            width: var(--Control_Button-width);
+            padding: var(--Controls-padding);
+            margin-bottom: var(--Controls-padding);
+            background: var(--Controls-Button-background);
+
+            box-sizing: border-box;
+            cursor: pointer;
+            overflow: hidden;
+            fill: whitesmoke;
+
+            z-index: 99;
+        }
+
+        .ControlButton::after {
+            content: '';
+            display: block;
+            padding-bottom: 100%;
+        }
+
+        .ControlButton:hover {
+            padding: 0;
+            fill: white;
+        }
+
+        .ProOption {
+            fill: grey;
+        }
+
+        mux-icon {
+            cursor: pointer;
+        }
+
+    </style>
+    <style id="Control_MotionMonitor_STYLE">
+        #Control_MotionMonitor_Settings figure {
+            position: relative;
+            float: left;
+            /*display: inline-block;*/
+            /*vertical-align: top;*/
+            margin: 0 0;
+        }
+
+        #Control_MotionMonitor_Settings figcaption {
+            text-align: left;
+            font-weight: bold;
+        }
+
+        #Control_MotionMonitor_Settings video,
+        #Control_MotionMonitor_Settings canvas {
+            width: 120px;
+            height: 90px;
+        }
+
+        #Control_MotionMonitor_Settings canvas {
+            image-rendering: pixelated;
+        }
+
+        #MotionScore {
+            position: fixed;
+            bottom: 0;
+            height: .2em;
+            width: 0;
+            background: lightgreen;
+            opacity: .5;
+        }
+    </style>
+
+    <style id="calendar">
+        .calendarEvent {
+            padding: 1em;
+            overflow: auto;
+        }
+
+        .calendarDay {
+            font-size: 1.2em;
+            font-weight: bold;
+            background: darkgrey;
+        }
+
+        .calendarAnnouncement {
+            background: lightgrey;
+        }
+
+        .event_slot {
+            position: relative;
+            float: left;
+            width: 20%
+        }
+
+        .event_title {
+            font-weight: bold;
+            width: 80%;
+        }
+
+        [class*='_text_'] {
+            color: dimgrey;
+        }
+
+    </style>
+
+</head>
+<body>
+<div id="TopMessage" class="drawer">21</div>
+<!--suppress CheckEmptyScriptTag -->
+<div id="Container">
+    <div id="URL" onclick="document.location='http://daysee.org';">www.DaySee.org</div>
+
+    <!-- All content is drawn on the fullscreen HTML5 Canvas -->
+    <canvas id="ClockCanvas"></canvas>
+    <div id="MotionScore"></div>
+
+    <!-- DaySee configuration controls -->
+    <div id="Controls__ButtonBar">
+        <!-- vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv    Switch to full screen display -->
+        <div class="ControlButton" id="Control_MaximizeClock">
+            <mux-icon name="maximize"></mux-icon>
+        </div>
+
+        <!-- vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv    Display Language flags -->
+        <div class="ControlButton" id="Control_Languages">
+            <mux-icon name="flag:nl" id="Current_daysee_language"></mux-icon>
+        </div>
+        <div class="ControlPage" id="Control_Languages_Settings" style="background:transparent">
+            <div class="Language_Selector" style="zoom:3;background:grey;padding:.5em;margin-top:1em;opacity:.8">
+                <mux-icon name="flag:nl"></mux-icon>
+                <mux-icon name="flag:en"></mux-icon>
+                <mux-icon name="flag:it"></mux-icon>
+                <mux-icon name="flag:de"></mux-icon>
+                <mux-icon name="flag:fr"></mux-icon>
+                <mux-icon name="flag:da"></mux-icon>
+                <mux-icon name="flag:es"></mux-icon>
+                <mux-icon name="flag:pt"></mux-icon>
+            </div>
+        </div>
+
+        <!--  vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv    Clock Configuration -->
+        <div class="ControlButton" id="Control_Configuration">
+            <mux-icon name="clockconfiguration"></mux-icon>
+        </div>
+        <div class="ControlPage" id="Control_Configuration_Settings">
+            <h2>[pro] Configuration</h2>
+            [todo:configuration for all (relevant) clocksettings like color etc.]
+            <style>
+                .ControlPage_Settings > *:not(H3) {
+                    zoom: var(--Controls-zoom);
+                    padding: .3em;
+                    cursor: pointer;
+                    margin: .3em;
+                }
+
+                #Control_Configuration_Settings_Controls > *:not(H3) {
+                }
+
+                [id^='TrueFalse_'] {
+                    cursor: pointer;
+                }
+
+                .ControlPage_Settings button[date^="9/23"] {
+                    display: inline;
+                }
+
+                .Language_Selector mux-icon {
+                    zoom: calc(1 / var(--Controls-zoom));
+                    display: inline-block;
+                    width: 7vw;
+                    xpadding: 0;
+                }
+            </style>
+            <div class="ControlPage_Settings" id="Control_Configuration_Settings_Controls">
+                <label id="TrueFalse_displaySeconds"><input type="checkbox">Show seconds hand</label>
+                <br>
+                <button onclick="setDate(event,false)"> Reset to current time</button>
+                <h3>Test long date: September 23</h3>
+                <button onclick="setDate(event,this)" date="9/23/2017 01:05"> night</button>
+                <button onclick="setDate(event,this)" date="9/23/2017 11:10"> morning</button>
+                <button onclick="setDate(event,this)" date="9/23/2017 14:15"> afternoon</button>
+                <button onclick="setDate(event,this)" date="9/23/2017 18:20"> evening</button>
+                <br>
+                <div class="Language_Selector">
+                    <mux-icon name="flag:nl"></mux-icon>
+                    <mux-icon name="flag:en"></mux-icon>
+                    <mux-icon name="flag:it"></mux-icon>
+                    <mux-icon name="flag:de"></mux-icon>
+                    <mux-icon name="flag:fr"></mux-icon>
+                    <mux-icon name="flag:da"></mux-icon>
+                    <mux-icon name="flag:es"></mux-icon>
+                    <mux-icon name="flag:pt"></mux-icon>
+                </div>
+            </div>
+        </div>
+
+        <!--  clock Calendar -->
+        <div class="ControlButton ProOption" id="Control_Calendar">
+            <mux-icon name="calendardate"></mux-icon>
+        </div>
+        <div class="ControlPage ProOption" id="Control_Calendar_Settings">
+            <h2>[pro] Calendar</h2>
+
+            <p>Display events from any Google Calendar or Outlook Calendar</p>
+            <div id="CalendarItems"></div>
+        </div>
+
+        <!-- vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv    Switch to full screen display -->
+        <div class="ControlButton" id="Control_Audio">
+            <mux-icon name="audio"></mux-icon>
+        </div>
+        <div class="ControlPage ProOption" id="Control_Audio_Settings">
+            <div class="ControlPage_Settings">
+                <label id="TrueFalse_audioNotifications"><input type="checkbox">use Audio notifications</label>
+            </div>
+        </div>
+
+
+        <!--  memory games -->
+        <div class="ControlButton ProOption" id="Control_MemoryTrainer">
+            <mux-icon name="dice"></mux-icon>
+        </div>
+        <div class="ControlPage ProOption" id="Control_MemoryTrainer_Settings">
+            <h2>[pro] Memory Trainer</h2>
+            <style>
+                #fruits {
+                    width: 100%;
+                }
+
+                #fruits > div {
+                    float: left;
+                    width: 100px;
+                    overflow: auto;
+                    border: 5px solid green;
+                    margin: 5px;
+                    padding: 5px;
+                }</style>
+            <div id="fruits">
+                <div class="fruit" word="appel">
+                    <mux-icon name="fruit:apple"></mux-icon>
+                </div>
+                <div class="fruit" word="banaan">
+                    <mux-icon name="fruit:banana"></mux-icon>
+                </div>
+                <div class="fruit" word="druiven">
+                    <mux-icon name="fruit:grapes"></mux-icon>
+                </div>
+                <div class="fruit" word="meloen">
+                    <mux-icon name="fruit:melon"></mux-icon>
+                </div>
+                <div class="fruit" word="peer">
+                    <mux-icon name="fruit:pear"></mux-icon>
+                </div>
+            </div>
+        </div>
+
+        <!--  Motion Monitoring -->
+        <div class="ControlButton ProOption" id="Control_MotionMonitor">
+            <mux-icon name="motionsensor"></mux-icon>
+        </div>
+        <div class="ControlPage" id="Control_MotionMonitor_Settings">
+            <h2>[pro] Motion monitoring</h2>
+            The camera can be used to detect motion:
+            <div class="ControlPage_Settings">
+                <label id="TrueFalse_cameraEnabled"><input type="checkbox">use Camera for Motion tracking</label>
+            </div>
+            <div>
+                <figure>
+                    <video></video>
+                </figure>
+                <figure>
+                    <canvas></canvas>
+                    <figcaption>
+                        Motion: <span class="score">?</span>
+                    </figcaption>
+                </figure>
+            </div>
+            <p style="clear:both;">
+                Motion history can be recorded:
+                <canvas id=motionGraph width=1200px height=600px style="background:lightgrey;width:100%"></canvas>
+        </div>
+
+        <!--  reload -->
+        <div class="ControlButton" id="Control_Reload">
+            <mux-icon name="reload"></mux-icon>
+        </div>
+        <!--  people -->
+        <div class="ControlButton" id="Control_People">
+            <mux-icon name="people"></mux-icon>
+        </div>
+        <!--  information -->
+        <div class="ControlButton" id="Control_Information">
+            <mux-icon name="info"></mux-icon>
+        </div>
+        <div class="ControlPage" id="Control_Information_Settings">
+            <style>
+                .Promos {
+                    xposition: fixed;
+                    top: 0;
+                    left: 0;
+                    width: 100%;
+                    bottom: 100px;
+                    color: black;
+                    background: lightblue;
+                    overflow: auto;
+                    font-size: 24px;
+                    padding-left: .2em;
+                }
+
+                .Promo {
+                    position: relative;
+                    float: left;
+                    background: var(--Controls-Button-background);
+                    color: white;
+                    border: 5px solid var(--Controls-Button-background);
+                    width: 50%;
+                    min-height: 200px;
+                    overflow: auto;
+                    box-sizing: border-box;
+                }
+
+                .promoIcon {
+                    position: relative;
+                    float: left;
+                    width: 25%;
+                    fill: whitesmoke;
+                }
+
+                .promoIntroduction {
+                }
+
+                .promoTitle {
+                    position: relative;
+                    float: right;
+                    width: 75%;
+                    padding-left: .2em;
+                    box-sizing: border-box;
+                }
+
+                .Promo:nth-child(1) {
+                    height: 50vh;
+                }
+
+                .promoTitle {
+                    float: left;
+                }
+
+                #Promo_UserImage {
+                    background-image: url('images/img_daysee_used_ria.jpg');
+                    background-size: contain;
+                    background-repeat: no-repeat;
+                    background-position: left;
+                    zoom: 1;
+                }
+            </style>
+            <div class="Promos">
+                <p><b>keep tabs</b> (english expression) : <i>to watch something or someone carefully</i></p>
+                <div class="Promo promoIntroduction">
+                    Turn an ordinary tablet into a personal assistant.
+                </div>
+                <div class="Promo" id="Promo_UserImage">
+                </div>
+                <div class="Promo">
+                    <div class="promoIcon">
+                        <mux-icon name="clockconfiguration"></mux-icon>
+                    </div>
+                    <div class="promoTitle">Analog clock,<br>dayname and daypart</div>
+                </div>
+                <div class="Promo">
+                    <div class="promoIcon">
+                        <mux-icon name="calendardate"></mux-icon>
+                    </div>
+                    <div class="promoTitle">Calendar and notifications</div>
+                </div>
+                <div class="Promo">
+                    <div class="promoIcon">
+                        <mux-icon name="dice"></mux-icon>
+                    </div>
+                    <div class="promoTitle">Engaging memory games</div>
+                </div>
+                <div class="Promo">
+                    <div class="promoIcon">
+                        <mux-icon name="motionsensor"></mux-icon>
+                    </div>
+                    <div class="promoTitle">Monitors client activity , configurable alarms</div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script type="application/javascript">
+    document.body.style.backgroundColor = canvas_backgroundColor;
+    if (!isChrome) {
+        //throw new Error("Something went badly wrong!");
+    }
+
+    const _DaisyFlower_Logo_Image = new Image();
+    _DaisyFlower_Logo_Image.src = 'data:image/png;base64,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';
+
+    const __SECOND = 1000;
+    const __MINUTE = __SECOND * 60;
+    const __5_MINUTES = __MINUTE * 5;
+    const __10_MINUTES = __MINUTE * 10;
+    const __15_MINUTES = __MINUTE * 15;
+    const __30_MINUTES = __MINUTE * 30;
+    const __HOUR = __MINUTE * 60;
+
+    const __SWITCH_TO_FULLSCREEN_AFTER_X_MINUTES = __5_MINUTES;
+
+    //region ------------------------------------------------------------------------------------- ### Global settings
+
+
+    function daysee_setting(){
+        return false;
+    }
+    //endregion -------------------------------------------------------------------------------------- Global settings
+
+    //region ------------------------------------------------------------------------------------- ### Language init
+
+    /* get language from URL ?lang=nl or from Browser */
+    let clock_language = getUrlParameter('lang');                     // is there a URL parameter?
+    if (!clock_language) {
+        clock_language = daysee_setting('language');
+    }
+    //endregion -------------------------------------------------------------------------------------- Language init
+
+    //region ------------------------------------------------------------------------------------- ### Generic functions
+    function getUrlParameter(name) {
+        name = name.replace(/[\[]/, '\\[').replace(/[\]]/, '\\]');
+        const regex = new RegExp('[\\?&]' + name + '=([^&#]*)');
+        const results = regex.exec(location.search);
+        return results === null ? null : decodeURIComponent(results[1].replace(/\+/g, ' '));
+    }
+
+    function reloadWebPage(seconds) {
+        window.setTimeout(function () {
+            location.reload();
+        }, __SECOND * seconds);
+    }
+
+    function padToStringLength(str, len) {
+        while (str.length < len) {
+            str = ' ' + str + ' ';
+        }
+        return str;
+    }
+
+    function clockdigits(n) {
+        return String(n).padStart(2, '0')
+    }
+
+    function fullscreen_On() {
+        try {
+            document.documentElement.webkitRequestFullscreen(); // Chrome & Edge
+        } catch (e) {
+            document.documentElement.msRequestFullscreen();     // IE 10
+        }
+    }
+    function fullscreen_Off() {
+        try {
+            document.webkitExitFullscreen();                    // Chrome & Edge
+        } catch (e) {
+            document.msExitFullscreen();                        // IE 10
+        }
+    }
+
+    window.setTimeout(
+        function () {
+            showDaySeeControls(false)
+        }
+        , __SWITCH_TO_FULLSCREEN_AFTER_X_MINUTES);
+
+    window.addEventListener(
+        "resize",
+        redrawScreen
+        , false);//not all browsers support orientationchange event
+
+    //endregion -------------------------------------------------------------------------------------- Generic functions
+
+
+    //region ------------------------------------------------------------------------------------- ### DaySee Clock functions
+
+    function setDate(event, me) {       // set date specified in DOM element
+        event.stopPropagation();
+        clockTestDate = false;
+        if (me) clockTestDate = me.getAttribute('date');
+        drawCanvasContainer();
+    }
+
+    /* Show the overlay for setting DaySee options/languages */
+    let showingDaySeeControls = false;
+    function showDaySeeControls(firstControlDisplayed) {
+        function setVisibility(selector, show) {
+            const element = document.querySelector(selector);
+            if (element) element.style.visibility = show ? 'visible' : 'hidden';
+        }
+
+        if (typeof firstControlDisplayed === 'boolean') {
+            showingDaySeeControls = firstControlDisplayed;
+        } else {
+            showingDaySeeControls = firstControlDisplayed && firstControlDisplayed.length > 0;
+        }
+
+        setVisibility('#Controls__ButtonBar', firstControlDisplayed);
+
+        if (firstControlDisplayed) {
+            fullscreen_Off();
+            showControlPageTab(firstControlDisplayed);//Languages,Configuration,Motion,Calendar
+        } else {
+            showControlPageTab();
+            fullscreen_On();
+        }
+    }
+
+    function showControlPageTab(except_id) {
+        forAllDOMelements('.ControlPage', function (me) {
+                let hideControl = 'none';
+                if (except_id) {
+                    if (me.id.includes(except_id)) {
+                        hideControl = 'inherit';
+                        //optional: execute function for visible element
+                    }
+                }
+                me.style.display = hideControl;
+            }
+        );
+    }
+
+    function elements(selector) {
+        return [].map.call(document.querySelectorAll(selector),function(el){
+            return el;
+        });
+        //return [...document.querySelectorAll(selector)];
+    }
+
+    function forAllDOMelements(selector, execFunc) {
+        elements(selector).map(function (domElement) {
+            execFunc.call(domElement, domElement);
+        });
+    }
+    function addEventListeners(selector, eventType, eventFunc) {
+        elements(selector).map(function (eventTarget) {
+            eventTarget.addEventListener(eventType, eventFunc);
+        });
+    }
+
+    function addEventListeners__click(selector, func) {
+        addEventListeners(selector, 'click', func);
+    }
+
+    addEventListeners__click('#Container'
+        , function (event) {
+            event.stopPropagation();
+            assistent.command('clockcanvas');
+        });
+    addEventListeners__click('.ControlButton'
+        , function (event) {
+            event.stopPropagation();
+            showControlPageTab(this.id);
+            daysee_setting('lastOpenedControlPage', this.id);
+            assistent.command(this.id);
+        });
+    addEventListeners__click(".Language_Selector mux-icon"
+        , function (event) {
+            event.stopPropagation();
+            let element = this;
+            let name = element.getAttribute('name');
+            if (name.includes('flag:')) assistent.setLanguage(name.split(':')[1]);
+            drawCanvasContainer();
+        });
+
+    //endregion -------------------------------------------------------------------------------------- DaySee Clock functions
+
+    //region ------------------------------------------------------------------------------------- ### application configuration
+
+    let motionHeartbeat = 100;
+
+    const display24hours = false; // display time on the analog clock in 1 - 24 hour notation
+
+    let canvasWidth,
+        canvasHeight,
+        canvasHalfWidth,
+        canvasHalfHeight;
+
+    let isPortrait;
+
+    let clockTestDate = getUrlParameter('date');
+
+    let clockDate,
+        clockfullHours,
+        clockHours,
+        clockMinutes,
+        clockSeconds;
+
+    let clockTop,
+        clockBottom,
+        clockHeight,
+        clockRadius,
+        clockOffset_X,          // X offset from 0,0 center Canvas/Screen
+        clockOffset_Y;          // Y offset from 0,0 center Canvas/Screen
+
+    // language based data
+    let strDate_weekday,           // monday..sunday
+        strDate_daypart,           // night..evening
+        strDate_DMY;               // localized date notation
+
+    let dateFontSize;
+
+    const clockHands = {
+        "hour": {
+            length: .4,
+            width: .125,
+            border: clock_handBorder,
+            fill: clock_handColor
+        },
+        "minute": {
+            length: .67,
+            width: .1,
+            border: clock_handBorder,
+            fill: clock_handColor
+        },
+        "second": {
+            length: .65,
+            width: .01,
+            border: "transparent",
+            fill: "grey"
+        }
+    };
+
+
+    //endregion -------------------------------------------------------------------------------------- application configuration
+
+    function initCurrentDateAndTime(newLanguage) {
+        clock_language = clock_language || newLanguage;
+        const daypartsLocale = {
+            /*  english */ "en": "evening,afternoon,morning,night",
+            /*  spanish */ "es": "noche,tarde,mañana,noche",
+            /*   french */ "fr": "soir,l'après-midi,le matin,la nuit",
+            /*    dutch */ "nl": "avond,middag,ochtend,nacht",
+            /*   german */ "de": "Abend,Nachmittag,Morgen,Nacht",
+            /*   danish */ "da": "aften,eftermiddag,morgen,aften",
+            /*  italian */ "it": "sera,pomeriggio,mattina,sera",
+            /* portuges */ "pt": "Noite,tarde,manhã,noite"          // todo needs different syntax?
+        };
+
+        let dayparts;                                   // Array with day part name based on clock_language: ['evening','afternoon','morning','night']
+        if (daypartsLocale.hasOwnProperty(clock_language)) {
+            dayparts = daypartsLocale[clock_language];
+        } else {
+            dayparts = daypartsLocale['en'];            // default language when no language is found
+        }
+
+        clockDate = new Date();
+        if (clockTestDate) clockDate = new Date(clockTestDate);
+
+        clockfullHours = clockDate.getHours();
+        clockMinutes = clockDate.getMinutes();
+        clockSeconds = clockDate.getSeconds();
+
+        clockHours = clockfullHours % 12;               // 1 to 11
+
+        strDate_weekday = clockDate.toLocaleDateString(clock_language, {weekday: 'long'}); // short for abbreviated notation
+
+        strDate_daypart = dayparts.split(',')[clockfullHours > 17 ? 0 : clockfullHours > 11 ? 1 : clockfullHours > 5 ? 2 : 3];//0=evening,1=night,2=morning,3=afternoon
+
+        // get language date notation
+        strDate_DMY = clockDate.toLocaleDateString(clock_language, {
+            day: 'numeric',
+            month: 'long',
+            year: 'numeric'
+        });
+    }
+
+    //region ------------------------------------------------------------------------------------- ### init
+    function redrawScreen() {
+        if (clockInterval_Seconds) clearInterval(clockInterval_Seconds);
+        if (clockInterval_Minutes) clearInterval(clockInterval_Minutes);
+        if (clockInterval_Hours) clearInterval(clockInterval_Hours);
+        drawCanvasContainer();
+    }
+    const canvasDOMelement = document.getElementById("ClockCanvas");
+    const ctx = canvasDOMelement.getContext("2d");
+
+    let clockInterval_Seconds;
+    let clockInterval_Minutes;
+    let clockInterval_Hours;
+
+
+    //endregion -------------------------------------------------------------------------------------- init
+
+    function drawCanvasContainer() {
+        const container = document.getElementById('Container').getBoundingClientRect();
+
+        canvasWidth = parseInt(container.width);
+        canvasHeight = parseInt(container.height);
+
+        isPortrait = canvasWidth < canvasHeight;
+
+        canvasHalfWidth = parseInt(canvasWidth / 2);
+        canvasHalfHeight = parseInt(canvasHeight / 2);
+
+        canvasDOMelement.width = canvasWidth;
+        canvasDOMelement.height = canvasHeight;
+
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+
+//region ------------------------------------------------------------------------------------- ### canvas draw functions
+        function fontSize(n) {
+            ctx.font = parseInt(n) + "px arial";
+            //ctx.font = parseInt(n) + "px Verdana, sans-serif";
+        }
+
+        function clearCanvas() {
+            ctx.clearRect(-canvasHalfWidth, -canvasHalfHeight, canvasHalfWidth, canvasHalfHeight);
+        }
+
+        function drawLine(x1, y1, x2, y2, width, color) {
+            ctx.lineWidth = width || 2;
+            ctx.strokeStyle = color || 'red';
+            ctx.beginPath();
+            ctx.moveTo(x1, y1);
+            ctx.lineTo(x2, y2);
+            ctx.stroke();
+        }
+
+        function drawHline(y, color, width) {
+            drawLine(-100, y, 100, y, width, color);
+        }
+
+        function drawRect(x1, y1, x2, y2, color) {
+            ctx.fillStyle = color;
+            ctx.fillRect(x1, y1, x2, y2);
+        }
+
+        function drawClockHand(handoptions, direction, radius) {
+            const handwidth = radius * handoptions.width;
+            ctx.beginPath();
+
+            ctx.moveTo(0, 0);                               // move to center of clock
+            ctx.lineWidth = handwidth;
+            ctx.strokeStyle = handoptions.border;
+            ctx.lineCap = "round";
+            ctx.rotate(direction);                          // rotate in the (seconds) direction
+
+            ctx.lineTo(0, -radius * handoptions.length);    // draw a line with length
+            ctx.stroke();
+
+            ctx.rotate(-direction);//back to 0,0 origin     // return to center of clock
+
+            ctx.lineWidth = handwidth * .8;                 // smaller width
+            ctx.strokeStyle = handoptions.fill;             // stroke inner color
+            ctx.stroke();
+        }
+
+        function drawText(txt, x, y, fontsize, maxfontsize, fittowidth, cleanwidth, backgroundColor, textColor) {
+            fontSize(fontsize);
+            if (fittowidth) {
+                fontsize = 200;
+                do {                                            // fit text to specified fittowidth size
+                    fontSize(--fontsize);
+                } while (ctx.measureText(txt).width > fittowidth);
+
+                if (maxfontsize) {
+                    do {                                            // limit to the maximum fontsize
+                        fontSize(--fontsize);
+                    } while (fontsize > maxfontsize);
+                }
+            }
+
+            while (                                             // move text inside right edge
+            (x + ctx.measureText(txt).width / 2) > canvasWidth / 2) {
+                --x;
+            }
+
+            do {                                                // move text inside bottom edge
+                y--
+            } while (y > canvasHalfHeight - fontsize / 1.5);
+
+
+            drawRect(                                           // clean area where text is drawn
+                /** x1 */ x - (cleanwidth / 2),
+                /** y1 */ y - (fontsize / 2) + (fontsize / 10),
+                /** x2 */ cleanwidth,
+                /** y2 */ fontsize,
+                /** color */ backgroundColor || day_backgroundColor
+            );
+
+            ctx.fillStyle = textColor || day_textColor;         // draw text
+            fontSize(fontsize);
+            ctx.fillText(txt, x, y);
+
+            return {                                            // return positioning information
+                "x": x,
+                "y": y,
+                "fontsize": fontsize,
+                "top": y - fontsize / 2,
+                "bottom": y + fontsize / 2,
+                "width": ctx.measureText(txt).width
+            };
+        }
+
+        function drawRotatingFlowerSeconds() {
+            /* Draw Daisy Flower image in center of clock and rotate in seconds */
+            let clockHandDirection = (clockSeconds * Math.PI / 30);
+            ctx.rotate(clockHandDirection);
+            let x = clockHands.minute.width * clockRadius * ( motionHeartbeat / 100);
+            ctx.drawImage(_DaisyFlower_Logo_Image, -x / 2, -x / 2, x, x);
+            ctx.rotate(-clockHandDirection);
+        }
+
+
+//endregion --------------------------------------------------------------------------------------  canvas draw functions
+//region ------------------------------------------------------------------------------------- ### drawAnalogClock
+
+        // display Analog clock RELATIVE to the 0,0 Canvas origin
+        function drawAnalogClock(clockOffset_X, clockOffset_Y, clockRadius) {
+
+            function drawAnalogClockFace() {
+                /* The whole clock needs to be redrawn to wipe out the previous CANVAS content */
+                ctx.beginPath();
+                ctx.arc(0, 0, clockRadius, 0, parseInt(2 * Math.PI));
+                ctx.fillStyle = clock_faceColor;
+                //ctx.fillStyle = 'hsl(' + 360 * Math.random() + ', 50%, 50%)';
+                ctx.fill();
+            }
+
+            function drawAnalogClockNumbers() {
+                ctx.fillStyle = clock_letterColor;
+                ctx.strokeStyle = clock_letterBorder;
+                ctx.lineWidth = clock_letterBorderThinkness;
+                for (let nmbr = 1; nmbr < 13; nmbr++) {
+
+                    let numberSize = (nmbr % 3 === 0) ? .3 : 0.2;// scale numbers,  3 6 9 12 are displayed bigger
+
+                    let numberStr = nmbr;
+                    if (display24hours && clockfullHours > 11) {
+                        numberStr += 12;
+                        numberSize *= .7; // 24 hour clock numbers are displayed smaller
+                    }
+
+                    fontSize(clockRadius * numberSize);
+                    let angle = nmbr * Math.PI / 6;                     // angle from 0,0 clock origin
+                    let numberoffset = clockRadius * 0.85;                   // draw number inside clock face
+                    ctx.rotate(angle);                                  // move to number position
+                    ctx.translate(0, -numberoffset);                    // set origin to center of Number
+                    ctx.rotate(-angle);                                 // move drawing position upright again
+                    ctx.strokeText(numberStr.toString(), 0, 0);         // draw outline
+                    ctx.fillText(numberStr.toString(), 0, 0);           // draw fill
+                    ctx.rotate(angle);                                  // rotate back to 0,0 clock origin
+                    ctx.translate(0, numberoffset);                     // set origin to center of clock
+                    ctx.rotate(-angle);                                 // stroke is upright again
+                }
+            }
+
+            function drawAnalogClockHands() {
+                let clockHandDirection = (clockHours * Math.PI / 6) + (clockMinutes * Math.PI / (6 * 60)) + (clockSeconds * Math.PI / (360 * 60));
+                drawClockHand(clockHands.hour, clockHandDirection, clockRadius);
+                clockHandDirection = (clockMinutes * Math.PI / 30) + (clockSeconds * Math.PI / (30 * 60));
+                drawClockHand(clockHands.minute, clockHandDirection, clockRadius);
+                clockHandDirection = (clockSeconds * Math.PI / 30);
+                if (daysee_setting('displaySeconds')) drawClockHand(clockHands.second, clockHandDirection, clockRadius);
+
+                drawRotatingFlowerSeconds(clockHandDirection);
+            }
+
+            function drawClockDebugInfo() {
+                drawHline(clockTop);
+                drawHline(0, 'green');
+                drawHline(clockBottom);
+                drawHline(clockOffset_Y, 'lightgreen');
+                drawLine(0, clockTop, 0, clockBottom, 4, 'orange');
+
+                const info = canvasWidth + ' x ' + canvasHeight
+                    + ' %' + parseInt((canvasWidth / canvasHeight) * 10) / 10
+                    + ' '
+//                                + '  s: ' + screen.availWidth + ' x ' + screen.availHeight
+//                                + '  c: ' + clockHeight + ' x ' + clockRadius + ' (' + clockTop + ' / ' + clockBottom
+                    + dateFontSize
+                    + '  d: ' + -canvasHalfHeight + ' x ' + canvasHalfHeight;
+                drawText(
+                    info
+                        /*          X */, 0
+                        /*          Y */, canvasHalfHeight - 7
+                        /*   fontsize */, 10
+                        /* fittowidth */, false
+                );
+                //drawText(clockDate.toLocaleTimeString(), 0, -canvasHalfHeight + 10, 20);
+            }
+
+            ctx.translate(clockOffset_X, clockOffset_Y); // move 0,0 point of canvas to center of clock
+            drawAnalogClockFace();
+            drawAnalogClockNumbers();
+            drawAnalogClockHands();
+            ctx.translate(-clockOffset_X, -clockOffset_Y); // move 0,0 back to non-clock center (screen)
+            if (trace) drawClockDebugInfo();
+        }
+
+//endregion ---------------------------------------------------------------------------------- ### drawAnalogClock
+        function drawClock_Portrait() {
+            ctx.textBaseline = "middle";
+            ctx.textAlign = "center";
+            const positionedDate =
+                drawText(                                                       // Date (bottom)
+                    /**       text */ padToStringLength(strDate_DMY, 10),
+                    /**          X */ 0,
+                    /**          Y */ canvasHalfHeight,
+                    /**   fontsize */ 10,
+                    /**maxfontsize */ canvasHeight / 10,
+                    /** fittowidth */ canvasWidth,
+                    /** cleanwidth */ canvasWidth
+                );
+            dateFontSize = positionedDate.fontsize;
+            clockBottom = parseInt(positionedDate.y - dateFontSize / 2);        // bottom of clock is top of text
+
+            let dateTextPosition_Y = parseInt(-canvasHalfHeight + dateFontSize / 2);
+
+            drawText(                                                           // Dayname (top)
+                /**       text */ strDate_weekday,
+                /**          X */ 0,
+                /**          Y */ dateTextPosition_Y,
+                /**   fontsize */ dateFontSize,
+                /**maxfontsize */ canvasHeight / 10,
+                /** fittowidth */ false,
+                /** cleanwidth */ canvasWidth
+            );
+
+            dateTextPosition_Y = dateTextPosition_Y + 10 + dateFontSize;        // below dayname
+            drawText(                                                           // daypart
+                /**       text */ strDate_daypart,
+                /**          X */ 0,
+                /**          Y */ dateTextPosition_Y,
+                /**   fontsize */ dateFontSize,
+                /**maxfontsize */ canvasHeight / 10,
+                /** fittowidth */ false,
+                /** cleanwidth */ canvasWidth
+            );
+
+            clockTop = parseInt(dateTextPosition_Y + dateFontSize / 2);
+            clockHeight = parseInt(clockBottom - clockTop);//clockTop is negative
+            clockRadius = parseInt(clockHeight / 2);
+            if (clockHeight > canvasWidth) clockRadius = canvasHalfWidth;
+            clockOffset_X = 0;                                                  // position clock centered between text
+            clockOffset_Y = parseInt((clockBottom + clockTop) / 2);             // clockTop is negative
+        }
+
+        function drawClock_Landscape() {
+            ctx.textBaseline = "middle";
+            ctx.textAlign = "center";
+            let dateTextPosition_X = canvasWidth / 4;
+            let positionedDate =
+                drawText(                                                                   // Date (right-bottom)
+                    /**       text */ strDate_DMY,
+                    /**          X */ dateTextPosition_X,
+                    /**          Y */ canvasHalfHeight,
+                    /**   fontsize */ 0,
+                    /**maxfontsize */ canvasHeight / 4,
+                    /** fittowidth */ canvasHalfWidth,
+                    /** cleanwidth */ canvasHalfWidth
+                );
+
+            dateFontSize = positionedDate.fontsize;
+
+            let dateTextPosition_Y = parseInt(-canvasHalfHeight + dateFontSize / 2) + 10;
+            positionedDate = drawText(                                                      // Day right-top
+                /**       text */ strDate_weekday,
+                /**          X */ dateTextPosition_X,
+                /**          Y */ dateTextPosition_Y,
+                /**   fontsize */ dateFontSize,
+                /**maxfontsize */ dateFontSize * 1.5,
+                /** fittowidth */ canvasHalfWidth,
+                /** cleanwidth */ canvasHalfWidth
+            );
+
+            dateFontSize = positionedDate.fontsize;
+            dateTextPosition_Y = dateTextPosition_Y + 10 + dateFontSize;
+            drawText(                                                                       // Daypart (below day)
+                /**       text */ strDate_daypart,
+                /**          X */ dateTextPosition_X,
+                /**          Y */ dateTextPosition_Y,
+                /**   fontsize */ dateFontSize,
+                /**maxfontsize */ dateFontSize,
+                /** fittowidth */ canvasHalfWidth,
+                /** cleanwidth */ canvasHalfWidth
+            );
+
+            clockHeight = canvasHeight;
+            if (clockHeight > canvasHalfWidth) {            // fit clock within left half of screen
+                clockRadius = parseInt(canvasWidth / 4);
+            } else {
+                clockRadius = parseInt(clockHeight / 2);
+            }
+            clockTop = -clockRadius;
+            clockBottom = clockRadius;
+            clockOffset_X = -dateTextPosition_X;            // move clock from screen center to the left half
+            clockOffset_Y = 0;
+        }
+
+        function setClockIntervals() {
+            clockInterval_Seconds = window.setInterval(function () {    // every SECOND
+                updateClockAndDate(true, false, false);
+            }, __SECOND);
+
+            clockInterval_Minutes = window.setInterval(function () {    // every MINUTE
+                updateClockAndDate(true, true, false);
+            }, __MINUTE);
+
+            clockInterval_Hours = window.setInterval(function () {      // every HOUR : but not whole hours!! it is a Timer !!
+                clearCanvas();
+                updateClockAndDate(true, true, true);
+            }, __HOUR);
+        }
+
+        updateClockAndDate(true, true, true);                                // first init with seconds/minutes/hours
+
+        setClockIntervals();
+
+        //noinspection JSUnusedLocalSymbols
+        function updateClockAndDate(newSecond, newMinute, newHour) {
+            ctx.translate(canvasHalfWidth, canvasHalfHeight);//canvas origin 0,0 is center of screen
+            initCurrentDateAndTime();
+
+            //if (newSecond);
+            if (newMinute) {
+                if (isPortrait) {
+                    drawClock_Portrait();
+                } else {
+                    drawClock_Landscape();
+                }
+            }
+            //if (newHour);// each hour, not every whole hour!
+
+            drawAnalogClock(clockOffset_X, clockOffset_Y, clockRadius);
+            ctx.translate(-canvasHalfWidth, -canvasHalfHeight);//canvas origin 0,0 is center of screen
+        }
+    }
+
+    //region ------------------------------------------------------------------------------------- ### Motion Monitoring
+    //endregion ---------------------------------------------------------------------------------- ### Motion Monitoring
+
+    drawCanvasContainer();
+
+
+</script>
+</body>
+</html>
